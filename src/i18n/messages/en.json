@@ -32,5 +32,24 @@
       "noResultsTitle": "No results found",
       "noResultsDescription": "No shipments match your current search or filter."
     }
+  },
+  "events": {
+    "title": "Chain Events",
+    "eventCount": "{count, plural, =1 {# event found} other {# events found}}",
+    "filterPlaceholder": "Filter by shipment ID...",
+    "clearFilter": "Clear filter",
+    "columns": {
+      "event": "Event",
+      "shipment": "Shipment",
+      "ledger": "Ledger",
+      "txHash": "Tx hash",
+      "time": "Time"
+    },
+    "empty": {
+      "title": "No chain events yet",
+      "description": "On-chain contract events will appear here once they are indexed.",
+      "noResultsTitle": "No events found",
+      "noResultsDescription": "No events match the current shipment filter."
+    }
   }
 }
