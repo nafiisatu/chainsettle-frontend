@@ -35,6 +35,7 @@ import {
   shortAddress,
   cn,
 } from '@/lib/utils';
+import { FormattedDate } from '@/components/FormattedDate';
 import { StellarLink } from '@/components/StellarLink';
 import type { Shipment, Comment } from '@/types';
 
@@ -549,7 +550,7 @@ export function ShipmentComments({
       ) : (
         /* Comments list */
         <div
-          className="space-y-3 mb-5 max-h-[480px] overflow-y-auto pr-1"
+          className="space-y-3 mb-5 max-h-[480px] overflow-y-auto pe-1"
           role="log"
           aria-label="Shipment comments"
           aria-live="polite"

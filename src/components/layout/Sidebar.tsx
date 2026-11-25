@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Activity,
   LayoutDashboard,
+  Users,
   X,
   Settings,
   Users,
@@ -24,6 +25,7 @@ import { useTranslations } from 'next-intl';
 const NAV_ITEMS = [
   { href: '/dashboard', labelKey: 'overview', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/shipments', labelKey: 'shipments', icon: Package },
+  { href: '/dashboard/counterparties', labelKey: 'counterparties', icon: Users },
   { href: '/notifications', labelKey: 'notifications', icon: Bell },
   { href: '/dashboard/events', labelKey: 'chainEvents', icon: Activity },
 ];
@@ -92,11 +94,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       className={cn(
         'no-print',
         // Base styles
-        'w-60 bg-white border-r border-gray-100 flex flex-col flex-shrink-0',
+        'w-60 bg-white border-e border-gray-100 flex flex-col flex-shrink-0',
         // Mobile: fixed drawer that slides in/out
-        'fixed inset-y-0 left-0 z-30 transition-transform duration-300 ease-in-out',
+        'fixed inset-y-0 start-0 z-30 transition-transform duration-300 ease-in-out',
         'md:relative md:translate-x-0 md:z-auto md:transition-none',
-        open ? 'translate-x-0' : '-translate-x-full',
+        open ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full',
       )}
       aria-hidden={!open}
     >
@@ -138,7 +140,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               <Icon className={cn('w-4 h-4', active ? 'text-brand-600' : 'text-gray-400')} />
               {t(labelKey)}
               {isNotifications && unreadCount > 0 && (
-                <span className="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold leading-none">
+                <span className="ms-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold leading-none">
                   {badgeLabel}
                 </span>
               )}

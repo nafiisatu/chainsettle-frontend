@@ -7,6 +7,7 @@ import { env } from '@/lib/env';
 import { useAuthStore } from '@/lib/hooks/use-auth-store';
 import { useAddressBook } from '@/lib/hooks/use-address-book-store';
 import { StellarLink } from '@/components/StellarLink';
+import { FormattedDate } from '@/components/FormattedDate';
 import type { Shipment } from '@/types';
 
 const STELLAR_NETWORK =

@@ -6,6 +6,10 @@
  */
 
 import { apiClient } from './client';
+import {
+  computeSupplierMetrics,
+  type SupplierMetrics,
+} from '@/lib/counterparty-metrics';
 import type {
   ApiResponse,
   PaginatedResponse,
@@ -264,5 +268,57 @@ export const adminApi = {
       { role },
     );
     return (data as ApiResponse<User>).data ?? (data as User);
+  },
+};
+
+// ----------------------------------------------------------------
+// Counterparties
+// ----------------------------------------------------------------
+
+export const counterpartiesApi = {
+  /** List shipments involving a counterparty address (defaults to supplier role) */
+  listShipments: async (
+    address: string,
+    params?: { role?: 'supplier' | 'buyer'; page?: number; limit?: number },
+  ): Promise<PaginatedResponse<Shipment>> => {
+    const role = params?.role ?? 'supplier';
+    const query =
+      role === 'buyer'
+        ? { buyerAddress: address, page: params?.page ?? 1, limit: params?.limit ?? 100 }
+        : { supplierAddress: address, page: params?.page ?? 1, limit: params?.limit ?? 100 };
+    const { data } = await apiClient.get<ApiResponse<PaginatedResponse<Shipment>>>(
+      '/shipments',
+      { params: query },
+    );
+    return data.data;
+  },
+
+  /** Fetch supplier shipment history from backend and compute reliability metrics */
+  getSupplierMetrics: async (supplierAddress: string): Promise<SupplierMetrics> => {
+    const firstPage = await counterpartiesApi.listShipments(supplierAddress, {
+      role: 'supplier',
+      page: 1,
+      limit: 100,
+    });
+    const shipments = [...(firstPage.data ?? [])];
+    const totalPages = Math.min(
+      firstPage.totalPages ?? firstPage.meta?.totalPages ?? 1,
+      5,
+    );
+    if (totalPages > 1) {
+      const remaining = await Promise.all(
+        Array.from({ length: totalPages - 1 }, (_, i) =>
+          counterpartiesApi.listShipments(supplierAddress, {
+            role: 'supplier',
+            page: i + 2,
+            limit: 100,
+          }),
+        ),
+      );
+      for (const res of remaining) {
+        shipments.push(...(res.data ?? []));
+      }
+    }
+    return computeSupplierMetrics(supplierAddress, shipments);
   },
 };

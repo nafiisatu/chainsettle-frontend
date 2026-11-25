@@ -15,9 +15,17 @@ import { ShipmentNotes } from '@/components/shipments/ShipmentNotes';
 import { shipmentStatusBadge, timeAgo, deriveUserRole, roleBadge } from '@/lib/utils';
 import { ShipmentComments } from '@/components/shipments/ShipmentComments';
 import { EscrowBalanceCard } from '@/components/shipments/EscrowBalanceCard';
-import { shipmentStatusBadge, timeAgo, deriveUserRole, roleBadge, stroopsToUsdc } from '@/lib/utils';
+import { shipmentStatusBadge, deriveUserRole, roleBadge, stroopsToUsdc } from '@/lib/utils';
+import { FormattedDate } from '@/components/FormattedDate';
 import { usePolling } from '@/lib/hooks/use-polling';
-import type { Shipment } from '@/types';
+import {
+  applyOptimisticMilestonePatch,
+  reconcileShipmentWithPendingSyncs,
+  rollbackMilestonePatch,
+  type OptimisticMilestonePatch,
+  type PendingMilestoneSync,
+} from '@/lib/milestones/optimistic';
+import type { Milestone, MilestoneStatus, Shipment } from '@/types';
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -51,15 +59,24 @@ export default function ShipmentDetailPage() {
   const [cancelStep, setCancelStep] = useState<'signing' | 'syncing' | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [pendingSyncs, setPendingSyncs] = useState<Record<number, PendingMilestoneSync>>({});
+  const pendingSyncsRef = useRef<Record<number, PendingMilestoneSync>>({});
   const loadingRef = useRef<HTMLDivElement>(null);
+
   const fetchShipment = useCallback(async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     try {
       const data = await shipmentsApi.get(id);
-      setShipment(data);
+      const { shipment: reconciled, remainingSyncs } = reconcileShipmentWithPendingSyncs(
+        data,
+        pendingSyncsRef.current,
+      );
+      pendingSyncsRef.current = remainingSyncs;
+      setPendingSyncs(remainingSyncs);
+      setShipment(reconciled);
       setLastUpdated(new Date());
       setSecondsAgo(0);
-      return data;
+      return reconciled;
     } catch (err) {
       console.error(err);
       return null;
@@ -68,10 +85,12 @@ export default function ShipmentDetailPage() {
     }
   }, [id]);
 
+  const hasPendingSyncs = Object.keys(pendingSyncs).length > 0;
+
   usePolling(async () => {
     await fetchShipment(true);
   }, POLL_INTERVAL_MS, {
-    enabled: shipment?.status === 'Active',
+    enabled: shipment?.status === 'Active' || hasPendingSyncs,
   });
 
   useEffect(() => {
@@ -113,6 +132,51 @@ export default function ShipmentDetailPage() {
     fetchShipment(true);
     setBalanceRefreshKey((k) => k + 1);
   };
+
+  const handleOptimisticMilestoneSync = useCallback(
+    async (
+      milestone: Milestone,
+      patch: OptimisticMilestonePatch,
+      expectedStatuses: MilestoneStatus[],
+    ) => {
+      const pending: PendingMilestoneSync = {
+        milestoneIndex: milestone.milestoneIndex,
+        expectedStatuses,
+        patch,
+        previousMilestone: milestone,
+      };
+      const nextPending = {
+        ...pendingSyncsRef.current,
+        [milestone.milestoneIndex]: pending,
+      };
+      pendingSyncsRef.current = nextPending;
+      setPendingSyncs(nextPending);
+
+      setShipment((prev) =>
+        prev ? applyOptimisticMilestonePatch(prev, milestone.milestoneIndex, patch) : prev,
+      );
+
+      try {
+        await shipmentsApi.sync(id);
+      } catch (err) {
+        // On-chain tx succeeded; keep Syncing state until backend poller agrees
+        console.error('Background milestone sync failed:', err);
+      }
+      await fetchShipment(true);
+      setBalanceRefreshKey((k) => k + 1);
+    },
+    [fetchShipment, id],
+  );
+
+  const handleRollbackMilestone = useCallback((previousMilestone: Milestone) => {
+    const nextPending = { ...pendingSyncsRef.current };
+    delete nextPending[previousMilestone.milestoneIndex];
+    pendingSyncsRef.current = nextPending;
+    setPendingSyncs(nextPending);
+    setShipment((prev) =>
+      prev ? rollbackMilestonePatch(prev, previousMilestone) : prev,
+    );
+  }, []);
 
   const openCancelModal = () => {
     setCancelError(null);
@@ -214,7 +278,7 @@ export default function ShipmentDetailPage() {
         href="/dashboard/shipments"
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 mb-5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
       >
-        <ArrowLeft className="w-4 h-4" />
+        <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
         All shipments
       </Link>
 
@@ -243,7 +307,7 @@ export default function ShipmentDetailPage() {
           </div>
           <div className="flex items-center gap-3">
             <p className="text-xs text-gray-400">
-              Created {timeAgo(shipment.createdAt)}
+              <FormattedDate date={shipment.createdAt} prefix="Created" />
             </p>
             {lastUpdated && (
               <p className="text-xs text-gray-300">
@@ -328,6 +392,9 @@ export default function ShipmentDetailPage() {
           shipment={shipment}
           userRole={userRole}
           onUpdate={onMilestoneUpdate}
+          pendingSyncs={pendingSyncs}
+          onOptimisticCommit={handleOptimisticMilestoneSync}
+          onRollback={handleRollbackMilestone}
         />
       </div>
 
@@ -378,7 +445,7 @@ export default function ShipmentDetailPage() {
             )}
             <div className="mt-5 flex items-center justify-end gap-2">
               {cancelStep && (
-                <span className="mr-auto text-xs text-gray-500" aria-live="polite">
+                <span className="me-auto text-xs text-gray-500" aria-live="polite">
                   {cancelStep === 'signing' ? 'Waiting for Freighter…' : 'Syncing shipment…'}
                 </span>
               )}
@@ -411,7 +478,7 @@ export default function ShipmentDetailPage() {
         <div
           role="status"
           aria-live="polite"
-          className={`fixed bottom-4 right-4 z-50 rounded-md px-4 py-2 text-sm text-white shadow-lg ${
+          className={`fixed bottom-4 end-4 z-50 rounded-md px-4 py-2 text-sm text-white shadow-lg ${
             toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
           }`}
         >

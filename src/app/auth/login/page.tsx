@@ -219,7 +219,7 @@ function LoginPageContent() {
               <button
                 type="button"
                 onClick={() => setInstallModalOpen(false)}
-                className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                className="absolute end-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
                 aria-label="Close Freighter installation dialog"
               >
                 <X className="h-4 w-4" />

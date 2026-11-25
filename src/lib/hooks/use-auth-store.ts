@@ -44,6 +44,7 @@ interface AuthState {
   displayName: string | null;
   displayCurrency: SupportedCurrency;
   notificationPreferences: NotificationPreferences;
+  datePreferences: DatePreferences;
   isConnected: boolean;
 
   // Actions
@@ -52,6 +53,7 @@ interface AuthState {
   setDisplayName: (displayName: string) => void;
   setDisplayCurrency: (currency: SupportedCurrency) => void;
   setNotificationPreferences: (preferences: NotificationPreferences) => void;
+  setDatePreferences: (preferences: DatePreferences) => void;
   logout: () => void;
   rehydrate: () => void;
 }
@@ -64,6 +66,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   displayName: null,
   displayCurrency: 'USD',
   notificationPreferences: defaultNotificationPreferences,
+  datePreferences: defaultDatePreferences,
   isConnected: false,
 
   setAuth: (address, token, user) => {
@@ -97,6 +100,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       notificationPreferences: storedPreferences
         ? { ...defaultNotificationPreferences, ...JSON.parse(storedPreferences) }
         : defaultNotificationPreferences,
+      datePreferences,
       isConnected: true,
     });
   },
@@ -137,6 +141,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ notificationPreferences: preferences });
   },
 
+  setDatePreferences: (preferences) => {
+    const address = useAuthStore.getState().address;
+    writeStoredDatePreferences(preferences, address);
+    set({ datePreferences: preferences });
+  },
+
   logout: () => {
     if (typeof window !== 'undefined') {
       clearStoredSession();
@@ -149,6 +159,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       displayName: null,
       displayCurrency: 'USD',
       notificationPreferences: defaultNotificationPreferences,
+      datePreferences: readStoredDatePreferences(null),
       isConnected: false,
     });
   },
@@ -163,6 +174,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         // rendering a "connected" UI whose API calls will all 401
         if (isExpired(expiresAt)) {
           clearStoredSession();
+          set({ datePreferences: readStoredDatePreferences(null) });
           return;
         }
         const storedPreferences = localStorage.getItem(`chainsetttle_notification_preferences_${address}`);
@@ -178,8 +190,11 @@ export const useAuthStore = create<AuthState>((set) => ({
           notificationPreferences: storedPreferences
             ? { ...defaultNotificationPreferences, ...JSON.parse(storedPreferences) }
             : defaultNotificationPreferences,
+          datePreferences: readStoredDatePreferences(address),
           isConnected: true,
         });
+      } else {
+        set({ datePreferences: readStoredDatePreferences(null) });
       }
     }
   },

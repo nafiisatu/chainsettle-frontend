@@ -5,6 +5,8 @@ import { Loader2, Printer } from "lucide-react";
 import { useParams } from "next/navigation";
 import { shipmentsApi } from "@/lib/api/services";
 import {
+  formatDate,
+  formatFullTimestamp,
   milestoneStatusLabel,
   shipmentStatusBadge,
   stroopsToUsdc,
@@ -47,7 +49,10 @@ export default function ShipmentPrintPage() {
           </p>
           <h1 className="font-mono text-2xl font-semibold">{shipment.id}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Created {new Date(shipment.createdAt).toLocaleDateString()}
+            Created{' '}
+            <time dateTime={shipment.createdAt} title={formatFullTimestamp(shipment.createdAt)}>
+              {formatDate(shipment.createdAt)}
+            </time>
           </p>
         </div>
         <div className="flex items-center gap-3">

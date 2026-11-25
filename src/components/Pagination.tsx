@@ -52,7 +52,7 @@ export function Pagination({
         )}
         aria-label="Previous page"
       >
-        <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+        <ChevronLeft className="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
         Previous
       </button>
 
@@ -73,7 +73,7 @@ export function Pagination({
         aria-label="Next page"
       >
         Next
-        <ChevronRight className="w-4 h-4" aria-hidden="true" />
+        <ChevronRight className="w-4 h-4 rtl:rotate-180" aria-hidden="true" />
       </button>
     </nav>
   );

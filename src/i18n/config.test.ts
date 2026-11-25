@@ -1,6 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { isLocale, locales, defaultLocale } from './config';
+import {
+  isLocale,
+  locales,
+  defaultLocale,
+  isRtlLocale,
+  getLocaleDirection,
+} from './config.ts';
 
 describe('i18n configuration', () => {
   describe('locales constant', () => {
@@ -39,6 +45,8 @@ describe('i18n configuration', () => {
   describe('isLocale type guard', () => {
     it('returns true for valid locale strings', () => {
       assert.equal(isLocale('en'), true);
+      assert.equal(isLocale('fr'), true);
+      assert.equal(isLocale('ar'), true);
     });
 
     it('returns true for all supported locales', () => {
@@ -48,12 +56,21 @@ describe('i18n configuration', () => {
     });
 
     it('returns false for unsupported locale strings', () => {
-      assert.equal(isLocale('fr'), false);
       assert.equal(isLocale('de'), false);
       assert.equal(isLocale('es'), false);
       assert.equal(isLocale('pt'), false);
       assert.equal(isLocale('ja'), false);
       assert.equal(isLocale('zh'), false);
+    });
+
+    it('identifies RTL locales and text direction', () => {
+      assert.equal(isRtlLocale('ar'), true);
+      assert.equal(isRtlLocale('en'), false);
+      assert.equal(isRtlLocale('fr'), false);
+      assert.equal(getLocaleDirection('ar'), 'rtl');
+      assert.equal(getLocaleDirection('en'), 'ltr');
+      assert.equal(getLocaleDirection('fr'), 'ltr');
+      assert.equal(getLocaleDirection(undefined), 'ltr');
     });
 
     it('returns false for invalid input', () => {

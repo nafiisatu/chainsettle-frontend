@@ -24,6 +24,7 @@ import { TransactionError, isTxPending } from '@/components/TransactionError';
 import { normalizeProofHash } from '@/lib/proof-hash';
 import { useAuthStore } from '@/lib/hooks/use-auth-store';
 import { milestoneStatusBadge, milestoneStatusLabel, stroopsToUsdc, proofHashHref, cn } from '@/lib/utils';
+import type { OptimisticMilestonePatch, PendingMilestoneSync } from '@/lib/milestones/optimistic';
 import type { Shipment, Milestone, MilestoneStatus } from '@/types';
 
 interface Props {
@@ -51,6 +52,9 @@ export function MilestoneTimeline({ shipment, userRole, onUpdate, selectedMilest
           shipment={shipment}
           userRole={userRole}
           onUpdate={onUpdate}
+          isSyncing={Boolean(pendingSyncs?.[milestone.milestoneIndex])}
+          onOptimisticCommit={onOptimisticCommit}
+          onRollback={onRollback}
           isLast={i === shipment.milestones.length - 1}
           onError={(msg) => setError(msg)}
           isSelected={selectedMilestoneIndex !== undefined ? i === selectedMilestoneIndex : false}
@@ -89,7 +93,11 @@ function MilestoneRow({
   shipment,
   userRole,
   onUpdate,
+  isSyncing,
+  onOptimisticCommit,
+  onRollback,
   isLast,
+  onClearError,
   onError,
   isSelected = false,
 }: {
@@ -97,6 +105,13 @@ function MilestoneRow({
   shipment: Shipment;
   userRole: string;
   onUpdate: () => void;
+  isSyncing: boolean;
+  onOptimisticCommit?: (
+    milestone: Milestone,
+    patch: OptimisticMilestonePatch,
+    expectedStatuses: MilestoneStatus[],
+  ) => void | Promise<void>;
+  onRollback?: (previousMilestone: Milestone) => void;
   isLast: boolean;
   onError: (msg: string) => void;
   isSelected?: boolean;
@@ -118,9 +133,6 @@ function MilestoneRow({
   const milestoneUsdc = ((totalUsdc * percent) / 100).toFixed(2);
 
   const isActive = shipment.status === 'Active';
-  const proofUrl = milestone.proofHash
-    ? toSafeProofUrl(milestone.proofHash, env.ipfsGateway)
-    : null;
 
   const statusIcon: Record<MilestoneStatus, JSX.Element> = {
     Pending:        <Clock className="w-4 h-4 text-gray-400" />,
@@ -130,30 +142,56 @@ function MilestoneRow({
     Resolved:       <CheckCircle2 className="w-4 h-4 text-purple-500" />,
   };
 
-  const wrap = async (fn: () => Promise<unknown>) => {
-    if (!address || loading) return;
+  const runMilestoneTx = async (
+    txFn: () => Promise<unknown>,
+    buildCommit: () => {
+      patch: OptimisticMilestonePatch;
+      expectedStatuses: MilestoneStatus[];
+    },
+  ) => {
+    if (!address || loading || isSyncing) return;
+    const previousMilestone = milestone;
+    onClearError();
     setLoading(true);
     try {
-      await fn();
-      onUpdate();
+      await txFn();
+      setLoading(false);
+      if (onOptimisticCommit) {
+        const { patch, expectedStatuses } = buildCommit();
+        await onOptimisticCommit(previousMilestone, patch, expectedStatuses);
+      } else {
+        onUpdate();
+      }
     } catch (err) {
+      onRollback?.(previousMilestone);
       onError(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmitProof = () =>
-    wrap(async () => {
-      if (!proofInput.trim()) throw new Error(t('proofRequired'));
-      await submitProof({
-        callerAddress: address!,
-        shipmentId: shipment.id,
-        milestoneIndex: milestone.milestoneIndex,
-        proofHash: proofInput.trim(),
-      });
-      closeProofInput();
-    });
+  const handleSubmitProof = () => {
+    const trimmedProof = proofInput.trim();
+    return runMilestoneTx(
+      async () => {
+        if (!trimmedProof) throw new Error(t('proofRequired'));
+        await submitProof({
+          callerAddress: address!,
+          shipmentId: shipment.id,
+          milestoneIndex: milestone.milestoneIndex,
+          proofHash: trimmedProof,
+        });
+        closeProofInput();
+      },
+      () => ({
+        patch: {
+          status: 'ProofSubmitted',
+          proofHash: trimmedProof,
+        },
+        expectedStatuses: ['ProofSubmitted'],
+      }),
+    );
+  };
 
   const closeProofInput = () => {
     setShowProofInput(false);
@@ -166,21 +204,48 @@ function MilestoneRow({
     setVerifyResult(null);
   };
 
-  const handleConfirm = () =>
-    wrap(() =>
-      confirmMilestone({
-        callerAddress: address!,
-        shipmentId: shipment.id,
-        milestoneIndex: milestone.milestoneIndex,
+  const handleConfirm = () => {
+    let optimisticReleased: string | null | undefined;
+    try {
+      optimisticReleased = (
+        (BigInt(shipment.totalAmount) * BigInt(milestone.paymentPercent)) /
+        100n
+      ).toString();
+    } catch {
+      optimisticReleased = undefined;
+    }
+
+    return runMilestoneTx(
+      () =>
+        confirmMilestone({
+          callerAddress: address!,
+          shipmentId: shipment.id,
+          milestoneIndex: milestone.milestoneIndex,
+        }),
+      () => ({
+        patch: {
+          status: 'Confirmed',
+          confirmedAt: new Date().toISOString(),
+          paymentReleased: optimisticReleased,
+        },
+        expectedStatuses: ['Confirmed'],
       }),
     );
+  };
 
   const handleDispute = () =>
-    wrap(() =>
-      raiseDispute({
-        callerAddress: address!,
-        shipmentId: shipment.id,
-        milestoneIndex: milestone.milestoneIndex,
+    runMilestoneTx(
+      () =>
+        raiseDispute({
+          callerAddress: address!,
+          shipmentId: shipment.id,
+          milestoneIndex: milestone.milestoneIndex,
+        }),
+      () => ({
+        patch: {
+          status: 'Disputed',
+        },
+        expectedStatuses: ['Disputed'],
       }),
     );
 
@@ -234,6 +299,17 @@ function MilestoneRow({
             <span className={milestoneStatusBadge(milestone.status)}>
               {milestoneStatusLabel(milestone.status)}
             </span>
+            {isSyncing && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700 ring-1 ring-inset ring-brand-600/20"
+                role="status"
+                aria-live="polite"
+                aria-label={t('syncingAria')}
+              >
+                <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                {t('syncing')}
+              </span>
+            )}
           </div>
 
           <p className="text-xs text-gray-400 mb-2">
@@ -330,7 +406,7 @@ function MilestoneRow({
             )}
 
             {/* Submit proof */}
-            {canSubmitProof && !loading && (
+            {canSubmitProof && !loading && !isSyncing && (
               <>
                 {showProofInput ? (
                   <div className="w-full space-y-3">
@@ -404,7 +480,7 @@ function MilestoneRow({
             )}
 
             {/* Confirm */}
-            {canConfirm && !loading && (
+            {canConfirm && !loading && !isSyncing && (
               <button
                 onClick={handleConfirm}
                 className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5"
@@ -415,7 +491,7 @@ function MilestoneRow({
             )}
 
             {/* Dispute */}
-            {canDispute && !loading && (
+            {canDispute && !loading && !isSyncing && (
               <button
                 onClick={handleDispute}
                 className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5 text-red-600 hover:text-red-700"
@@ -431,7 +507,10 @@ function MilestoneRow({
             <ArbiterPanel
               shipment={shipment}
               milestone={milestone}
+              disabled={isSyncing}
               onUpdate={onUpdate}
+              onOptimisticCommit={onOptimisticCommit}
+              onRollback={onRollback}
               onError={onError}
             />
           )}

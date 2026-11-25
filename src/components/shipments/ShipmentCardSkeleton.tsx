@@ -10,7 +10,7 @@ export function ShipmentCardSkeleton() {
           </div>
           <div className="h-3 bg-gray-100 rounded w-48" />
         </div>
-        <div className="text-right">
+        <div className="text-end">
           <div className="h-3.5 bg-gray-100 rounded w-16 mb-1" />
           <div className="h-3 bg-gray-100 rounded w-20" />
         </div>

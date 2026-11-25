@@ -120,7 +120,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
           aria-label="Notifications"
         >
           <Bell className="w-4.5 h-4.5" />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />
+          <span className="absolute top-1.5 end-1.5 w-1.5 h-1.5 rounded-full bg-red-500" />
         </Link>
 
         {/* Wallet address dropdown */}
@@ -137,7 +137,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
             </button>
 
             {open && (
-              <div id="wallet-dropdown" className="absolute right-0 mt-1.5 w-52 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
+              <div id="wallet-dropdown" className="absolute end-0 mt-1.5 w-52 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-50">
                 <button
                   onClick={handleCopy}
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset"

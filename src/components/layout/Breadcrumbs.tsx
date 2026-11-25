@@ -58,6 +58,15 @@ export function Breadcrumbs() {
     breadcrumbs.push({ label: "Settings" });
   } else if (segments[1] === "notifications") {
     breadcrumbs.push({ label: "Notifications" });
+  } else if (segments[1] === "events") {
+    breadcrumbs.push({ label: "Chain Events" });
+  } else if (segments[1] === "settings") {
+    breadcrumbs.push({ label: "Settings" });
+  } else if (segments[1] === "counterparties") {
+    breadcrumbs.push({ label: "Counterparties", href: "/dashboard/counterparties" });
+    if (segments[2]) {
+      breadcrumbs.push({ label: segments[2] });
+    }
   }
 
   return (
@@ -73,7 +82,7 @@ export function Breadcrumbs() {
           >
             {index > 0 && (
               <ChevronRight
-                className="h-3.5 w-3.5 flex-shrink-0 text-gray-300"
+                className="h-3.5 w-3.5 flex-shrink-0 text-gray-300 rtl:rotate-180"
                 aria-hidden="true"
               />
             )}

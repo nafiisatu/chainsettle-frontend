@@ -520,7 +520,7 @@ function ShipmentsPageContent() {
         </div>
 
         <div className="relative max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
           <input
             ref={searchInputRef}
             type="text"
@@ -528,12 +528,12 @@ function ShipmentsPageContent() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Search shipments"
-            className="input pl-9"
+            className="input ps-9"
           />
         </div>
 
         <div className="flex items-end gap-3 flex-wrap rounded-xl border border-gray-100 bg-white p-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mr-1">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-700 me-1">
             <SlidersHorizontal className="w-4 h-4 text-gray-400" />
             Advanced filters
           </div>

@@ -5,8 +5,12 @@ import { Copy, LogOut, UserRound, Globe, PlayCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Bell, Copy, LogOut, UserRound } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-import { useAuthStore, type NotificationPreferences } from '@/lib/hooks/use-auth-store';
+import { useLocale, useTranslations } from 'next-intl';
+import {
+  useAuthStore,
+  type DateDisplayMode,
+  type NotificationPreferences,
+} from '@/lib/hooks/use-auth-store';
 import { useWalletBalance } from '@/lib/hooks/use-wallet-balance';
 import { useCurrency } from '@/lib/hooks/use-currency';
 import { ApproximateFiat } from '@/components/ui/ApproximateFiat';
@@ -19,6 +23,7 @@ type PermissionState = 'default' | 'granted' | 'denied' | 'unsupported';
 
 export default function SettingsPage() {
   const t = useTranslations('settings');
+  const locale = useLocale();
   const router = useRouter();
   const {
     address,
@@ -26,10 +31,12 @@ export default function SettingsPage() {
     displayName,
     displayCurrency,
     notificationPreferences,
+    datePreferences,
     logout,
     setDisplayName,
     setDisplayCurrency,
     setNotificationPreferences,
+    setDatePreferences,
   } = useAuthStore();
   const [name, setName] = useState(displayName ?? '');
   const [tourResetSuccess, setTourResetSuccess] = useState(false);
@@ -205,6 +212,99 @@ export default function SettingsPage() {
                 />
               </label>
             </div>
+          </div>
+
+          <div>
+            <p className="label flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+              {t('dateTimePreferences')}
+            </p>
+            <div className="space-y-3 rounded-xl border border-gray-100 p-4">
+              <div>
+                <label htmlFor="timezone-select" className="block text-xs font-medium text-gray-700 mb-1">
+                  {t('timezoneLabel')}
+                </label>
+                <select
+                  id="timezone-select"
+                  value={datePreferences.timezone}
+                  onChange={(event) =>
+                    setDatePreferences({
+                      ...datePreferences,
+                      timezone: event.target.value,
+                    })
+                  }
+                  className="input text-sm"
+                >
+                  <option value="auto">
+                    {t('timezoneAuto', { timezone: browserTimeZone })}
+                  </option>
+                  {timezones.map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <span className="block text-xs font-medium text-gray-700 mb-1.5">
+                  {t('dateFormatLabel')}
+                </span>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('dateFormatLabel')}>
+                  {([
+                    ['relative', t('dateFormatRelative')],
+                    ['absolute', t('dateFormatAbsolute')],
+                  ] as [DateDisplayMode, string][]).map(([mode, label]) => {
+                    const selected = datePreferences.displayMode === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() =>
+                          setDatePreferences({
+                            ...datePreferences,
+                            displayMode: mode,
+                          })
+                        }
+                        className={`rounded-xl border px-3 py-2 text-start text-xs font-medium transition-colors ${
+                          selected
+                            ? 'border-brand-600 bg-brand-50 text-brand-700'
+                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-xs">
+                <span className="text-gray-500">{t('datePreviewLabel')}</span>
+                <FormattedDate date={previewIso} className="font-medium text-gray-800 underline decoration-dotted" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="locale-select" className="label flex items-center gap-1.5">
+              <Globe className="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+              {t('languageLabel')}
+            </label>
+            <select
+              id="locale-select"
+              value={locale}
+              onChange={(event) => handleLocaleChange(event.target.value as Locale)}
+              className="input text-sm"
+            >
+              {locales.map((loc) => (
+                <option key={loc} value={loc}>
+                  {localeLabels[loc]}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

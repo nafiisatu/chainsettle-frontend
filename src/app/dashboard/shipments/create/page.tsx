@@ -17,6 +17,7 @@ import { useShipmentTemplates, useTemplatesStore } from '@/lib/hooks/use-templat
 import { cloneMilestones, isSavableSplit, type ShipmentTemplate } from '@/lib/templates';
 import { TemplatePicker } from '@/components/templates/TemplatePicker';
 import { SaveTemplateDialog } from '@/components/templates/SaveTemplateDialog';
+import { SupplierMetricsCard } from '@/components/counterparties/SupplierMetricsCard';
 import { TransactionError, isTxPending } from '@/components/TransactionError';
 import type { CreateMilestoneInput } from '@/types';
 
@@ -120,6 +121,7 @@ function CreateShipmentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const duplicateFrom = searchParams?.get('from') ?? '';
+  const prefilledSupplier = normalizeAddress(searchParams?.get('supplier') ?? '');
   const { address } = useAuthStore();
   const errorId = useId();
   const txStepId = useId();
@@ -127,7 +129,7 @@ function CreateShipmentPageContent() {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
 
   const [shipmentId, setShipmentId] = useState(generateShipmentId);
-  const [supplierAddress, setSupplierAddress] = useState('');
+  const [supplierAddress, setSupplierAddress] = useState(prefilledSupplier);
   const [logisticsAddress, setLogisticsAddress] = useState('');
   const [arbiterAddress, setArbiterAddress] = useState('');
   const [totalUsdc, setTotalUsdc] = useState('');
@@ -160,7 +162,9 @@ function CreateShipmentPageContent() {
       try {
         const draft = JSON.parse(savedDraft) as Partial<ShipmentDraft>;
         if (draft.shipmentId) setShipmentId(draft.shipmentId);
-        if (typeof draft.supplierAddress === 'string') setSupplierAddress(normalizeAddress(draft.supplierAddress));
+        if (!prefilledSupplier && typeof draft.supplierAddress === 'string') {
+          setSupplierAddress(normalizeAddress(draft.supplierAddress));
+        }
         if (typeof draft.logisticsAddress === 'string') setLogisticsAddress(normalizeAddress(draft.logisticsAddress));
         if (typeof draft.arbiterAddress === 'string') setArbiterAddress(normalizeAddress(draft.arbiterAddress));
         if (typeof draft.totalUsdc === 'string') setTotalUsdc(draft.totalUsdc);
@@ -391,7 +395,7 @@ function CreateShipmentPageContent() {
         href="/dashboard/shipments"
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 mb-5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
       >
-        <ArrowLeft className="w-4 h-4" />
+        <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
         Back
       </Link>
 
@@ -464,7 +468,7 @@ function CreateShipmentPageContent() {
                 <p className="text-sm font-medium text-red-700">
                   Please fix the following before signing:
                 </p>
-                <ul className="list-disc pl-4 text-sm text-red-700 space-y-0.5">
+                <ul className="list-disc ps-4 text-sm text-red-700 space-y-0.5">
                   {summaryErrors.map(([role, message]) => (
                     <li key={role}>
                       <a href={`#${generateInputId(role)}`} className="underline hover:text-red-900">
@@ -520,15 +524,22 @@ function CreateShipmentPageContent() {
               <label htmlFor={generateInputId('buyer')} className="label">Your address (buyer)</label>
               <input id={generateInputId('buyer')} value={address ?? ''} readOnly className="input bg-gray-50 text-gray-500 font-mono text-xs" />
             </div>
-            <AddressField
-              role="supplier"
-              label="Supplier Stellar address"
-              value={supplierAddress}
-              onChange={(v) => setSupplierAddress(normalizeAddress(v))}
-              onBlur={() => markTouched('supplier')}
-              error={visiblePartyError('supplier')}
-              touched={touched.supplier}
-            />
+            <div>
+              <AddressField
+                role="supplier"
+                label="Supplier Stellar address"
+                value={supplierAddress}
+                onChange={(v) => setSupplierAddress(normalizeAddress(v))}
+                onBlur={() => markTouched('supplier')}
+                error={visiblePartyError('supplier')}
+                touched={touched.supplier}
+              />
+              <SupplierMetricsCard
+                address={supplierAddress}
+                compact
+                showProfileLink
+              />
+            </div>
             <AddressField
               role="logistics"
               label="Logistics Stellar address"
@@ -605,10 +616,10 @@ function CreateShipmentPageContent() {
                       )
                     }
                     required
-                    className="input pr-7"
+                    className="input pe-7"
                     aria-label={`Milestone ${i + 1} payment percentage`}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400" aria-hidden="true">%</span>
+                  <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-gray-400" aria-hidden="true">%</span>
                 </div>
                 {milestones.length > 1 && (
                   <button
