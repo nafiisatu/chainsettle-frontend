@@ -1,6 +1,15 @@
-import { describe, it } from 'node:test';
+import { afterEach, describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeJwtPayload, getTokenExpiry, isExpired } from './jwt';
+
+function tokenWith(payload: unknown): string {
+  const base64url = Buffer.from(JSON.stringify(payload))
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+  return `header.${base64url}.signature`;
+}
 
 describe('JWT utility functions', () => {
   describe('decodeJwtPayload', () => {
@@ -117,6 +126,75 @@ describe('JWT utility functions', () => {
       assert.equal(isExpired(future), false);
       const past = Date.now() - 1000;
       assert.equal(isExpired(past), true);
+    });
+  });
+
+  describe('malformed tokens', () => {
+    const malformed = [
+      '',
+      '.',
+      '..',
+      'onlyonepart',
+      'a.b.c.d',
+      'header..signature',
+      'header.%%%.signature',
+      'header.bm90LWpzb24.signature', // "not-json"
+      'header.MTIz.signature', // "123"
+      'header.InN0cmluZyI.signature', // "\"string\""
+    ];
+
+    for (const token of malformed) {
+      it(`never throws for ${JSON.stringify(token)}`, () => {
+        assert.doesNotThrow(() => decodeJwtPayload(token));
+        assert.doesNotThrow(() => getTokenExpiry(token));
+        assert.equal(getTokenExpiry(token), null);
+      });
+    }
+
+    it('returns null for a primitive payload', () => {
+      assert.equal(decodeJwtPayload('header.MTIz.signature'), null);
+      assert.equal(decodeJwtPayload('header.InN0cmluZyI.signature'), null);
+    });
+
+    it('treats a token without exp as never expiring', () => {
+      const expiry = getTokenExpiry(tokenWith({ sub: 'user-123' }));
+      assert.equal(expiry, null);
+      assert.equal(isExpired(expiry), false);
+    });
+  });
+
+  describe('expiry with mocked time', () => {
+    const NOW = Date.UTC(2026, 0, 1, 12, 0, 0);
+
+    afterEach(() => {
+      mock.restoreAll();
+    });
+
+    it('reports a valid token as not expired', () => {
+      mock.method(Date, 'now', () => NOW);
+      const token = tokenWith({ exp: NOW / 1000 + 60 });
+      assert.equal(isExpired(getTokenExpiry(token)), false);
+    });
+
+    it('reports an expired token as expired', () => {
+      mock.method(Date, 'now', () => NOW);
+      const token = tokenWith({ exp: NOW / 1000 - 60 });
+      assert.equal(isExpired(getTokenExpiry(token)), true);
+    });
+
+    it('reports a token expiring exactly now as expired', () => {
+      mock.method(Date, 'now', () => NOW);
+      const token = tokenWith({ exp: NOW / 1000 });
+      assert.equal(isExpired(getTokenExpiry(token)), true);
+    });
+
+    it('flips to expired once the clock passes exp', () => {
+      let now = NOW;
+      mock.method(Date, 'now', () => now);
+      const expiresAt = getTokenExpiry(tokenWith({ exp: NOW / 1000 + 1 }));
+      assert.equal(isExpired(expiresAt), false);
+      now = NOW + 1000;
+      assert.equal(isExpired(expiresAt), true);
     });
   });
 });

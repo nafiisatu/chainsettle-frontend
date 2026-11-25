@@ -299,6 +299,8 @@ npm run dev
 
 See the [contributor guide](CONTRIBUTING.md) for local setup, checks to run, and the pull request process.
 
+For a map of the codebase (folder structure, data flow between the UI, backend and Soroban contract, state stores and polling), read the [architecture overview](docs/architecture.md).
+
 ---
 
 ## Environment variables

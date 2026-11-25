@@ -2,6 +2,8 @@
 
 Thanks for helping improve ChainSettle. Please follow this guide when setting up the project and opening a pull request.
 
+New to the codebase? Start with the [architecture overview](docs/architecture.md). It explains how the frontend, backend and Soroban contract interact.
+
 ## Local setup
 
 1. Install [Node.js 20 or later](https://nodejs.org/) and npm.

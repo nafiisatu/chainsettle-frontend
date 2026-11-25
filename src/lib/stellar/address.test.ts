@@ -1,118 +1,115 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeAddress, isValidStellarAddress } from './address';
+import { isValidStellarAddress, normalizeAddress, validateParties } from './address';
+
+// Valid Ed25519 public keys (correct version byte and CRC16 checksum)
+const BUYER = 'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7';
+const SUPPLIER = 'GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H';
+const LOGISTICS = 'GAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H';
+const ARBITER = 'GABAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEJXA';
 
 describe('Stellar address utilities', () => {
   describe('normalizeAddress', () => {
-    it('converts lowercase addresses to uppercase', () => {
-      const input = 'gcdvuvdfyrmzuvr2v2ujhbvl2zxi33ewqd37zrzthllzs2qqyt6zqua';
-      const result = normalizeAddress(input);
-      assert.equal(result, 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQYT6ZQUA');
+    it('trims surrounding whitespace, tabs and newlines', () => {
+      assert.equal(normalizeAddress(`  ${BUYER}  `), BUYER);
+      assert.equal(normalizeAddress(`\n\t${BUYER}\r\n`), BUYER);
     });
 
-    it('leaves uppercase addresses unchanged', () => {
-      const input = 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQYT6ZQUA';
-      const result = normalizeAddress(input);
-      assert.equal(result, input);
+    it('leaves an already clean address unchanged', () => {
+      assert.equal(normalizeAddress(BUYER), BUYER);
     });
 
-    it('converts mixed case addresses to uppercase', () => {
-      const input = 'GcDvUvDfYrMzUvR2V2uJhBvL2ZxI33eWqD37zRzThLlZs2QqYt6zQuA';
-      const result = normalizeAddress(input);
-      assert.equal(result, 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQYT6ZQUA');
-    });
-
-    it('trims whitespace before normalizing', () => {
-      const input = '  gcdvuvdfyrmzuvr2v2ujhbvl2zxi33ewqd37zrzthllzs2qqyt6zqua  ';
-      const result = normalizeAddress(input);
-      assert.equal(result, 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQYT6ZQUA');
-    });
-
-    it('returns contract addresses unchanged', () => {
-      const input = 'CAB7DXV5GWMJ7BQBFTNRQ2OB6QOFL3V45B4EVFVVZRR2V7Q3H3QACWQ';
-      const result = normalizeAddress(input);
-      assert.equal(result, input);
+    it('does not change letter case', () => {
+      assert.equal(normalizeAddress(BUYER.toLowerCase()), BUYER.toLowerCase());
     });
   });
 
   describe('isValidStellarAddress', () => {
-    it('validates correct Stellar account addresses (starting with G)', () => {
-      const address = 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQYT6ZQUA';
-      assert.equal(isValidStellarAddress(address), true);
+    it('accepts valid G-addresses', () => {
+      for (const address of [BUYER, SUPPLIER, LOGISTICS, ARBITER]) {
+        assert.equal(isValidStellarAddress(address), true, address);
+      }
     });
 
-    it('validates correct Stellar contract addresses (starting with C)', () => {
-      const address = 'CAB7DXV5GWMJ7BQBFTNRQ2OB6QOFL3V45B4EVFVVZRR2V7Q3H3QACWQ';
-      assert.equal(isValidStellarAddress(address), true);
+    it('accepts a valid address with surrounding whitespace', () => {
+      assert.equal(isValidStellarAddress(`  ${BUYER}\n`), true);
     });
 
-    it('rejects addresses with incorrect length', () => {
-      const shortAddress = 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQYT6ZQU';
-      const longAddress = 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQYT6ZQUAA';
-      assert.equal(isValidStellarAddress(shortAddress), false);
-      assert.equal(isValidStellarAddress(longAddress), false);
+    it('rejects an address with a bad checksum', () => {
+      const tampered = `${BUYER.slice(0, -1)}${BUYER.endsWith('A') ? 'B' : 'A'}`;
+      assert.equal(isValidStellarAddress(tampered), false);
     });
 
-    it('rejects addresses with invalid first character', () => {
-      const address = 'ACDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQYT6ZQUA';
-      assert.equal(isValidStellarAddress(address), false);
+    it('rejects addresses with the wrong length', () => {
+      assert.equal(isValidStellarAddress(BUYER.slice(0, -1)), false);
+      assert.equal(isValidStellarAddress(`${BUYER}A`), false);
     });
 
-    it('rejects addresses with invalid characters (not base32)', () => {
-      const address = 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQYT6ZQU@';
-      assert.equal(isValidStellarAddress(address), false);
+    it('rejects non-account prefixes', () => {
+      // Secret seed (S...) and a random C-prefixed string
+      assert.equal(isValidStellarAddress('SBK2VIYYSVG76E7VC3QHYARNFLY2EAQXDHRC7BMXBBGIFG74ARPRMNQM'), false);
+      assert.equal(isValidStellarAddress(`C${BUYER.slice(1)}`), false);
     });
 
-    it('accepts lowercase valid addresses', () => {
-      const address = 'gcdvuvdfyrmzuvr2v2ujhbvl2zxi33ewqd37zrzthllzs2qqyt6zqua';
-      assert.equal(isValidStellarAddress(address), true);
+    it('rejects characters outside the base32 alphabet', () => {
+      assert.equal(isValidStellarAddress(`${BUYER.slice(0, -1)}@`), false);
+      assert.equal(isValidStellarAddress(`${BUYER.slice(0, -1)}0`), false);
     });
 
-    it('rejects empty string', () => {
+    it('rejects empty and whitespace-only values', () => {
       assert.equal(isValidStellarAddress(''), false);
-    });
-
-    it('rejects whitespace-only string', () => {
       assert.equal(isValidStellarAddress('   '), false);
-    });
-
-    it('rejects undefined/null-like strings', () => {
-      assert.equal(isValidStellarAddress('null'), false);
-      assert.equal(isValidStellarAddress('undefined'), false);
-    });
-
-    it('validates base32 character set correctly', () => {
-      // Base32 for Stellar uses: A-Z and 2-7
-      // Invalid: lowercase (unless normalized), 0-1, 8-9, symbols
-      
-      const validAddress = 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQYT6ZQUA';
-      const invalidAddress1 = 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQY0ZQUA'; // 0 is invalid
-      const invalidAddress2 = 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQY1ZQUA'; // 1 is invalid
-      const invalidAddress3 = 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQY8ZQUA'; // 8 is invalid
-      const invalidAddress4 = 'GCDVUVDFYRMZUVR2V2UJHBVL2ZXI33EWQD37ZRZTHLLZS2QQY9ZQUA'; // 9 is invalid
-      
-      assert.equal(isValidStellarAddress(validAddress), true);
-      assert.equal(isValidStellarAddress(invalidAddress1), false);
-      assert.equal(isValidStellarAddress(invalidAddress2), false);
-      assert.equal(isValidStellarAddress(invalidAddress3), false);
-      assert.equal(isValidStellarAddress(invalidAddress4), false);
     });
   });
 
-  describe('address format constants', () => {
-    it('documents Stellar address length', () => {
-      // Standard Stellar address length is 56 characters
-      // Both account addresses (G) and contract addresses (C) are 56 chars
-      const length = 56;
-      assert.equal(length, 56);
+  describe('validateParties', () => {
+    const parties = {
+      buyer: BUYER,
+      supplier: SUPPLIER,
+      logistics: LOGISTICS,
+      arbiter: ARBITER,
+    };
+
+    it('returns no errors for four distinct valid addresses', () => {
+      assert.deepEqual(validateParties(parties), {});
     });
 
-    it('documents valid address prefixes', () => {
-      // Valid first characters:
-      // - 'G' or 'g': Public Stellar account address
-      // - 'C' or 'c': Stellar contract address
-      const validPrefixes = ['G', 'C'];
-      assert.equal(validPrefixes.length, 2);
+    it('skips empty fields', () => {
+      assert.deepEqual(validateParties({ ...parties, logistics: '', arbiter: '   ' }), {});
+    });
+
+    it('flags an invalid address', () => {
+      const errors = validateParties({ ...parties, supplier: 'not-an-address' });
+      assert.deepEqual(Object.keys(errors), ['supplier']);
+      assert.match(errors.supplier!, /valid Stellar public key/);
+    });
+
+    it('flags a duplicate party against the earlier role', () => {
+      const errors = validateParties({ ...parties, supplier: BUYER });
+      assert.deepEqual(errors, {
+        supplier: 'Supplier must be different from the buyer address.',
+      });
+    });
+
+    it('flags every later duplicate of the same address', () => {
+      const errors = validateParties({ ...parties, logistics: SUPPLIER, arbiter: SUPPLIER });
+      assert.deepEqual(errors, {
+        logistics: 'Logistics must be different from the supplier address.',
+        arbiter: 'Arbiter must be different from the supplier address.',
+      });
+    });
+
+    it('detects duplicates after whitespace normalisation', () => {
+      const errors = validateParties({ ...parties, arbiter: `  ${BUYER}\n` });
+      assert.deepEqual(errors, {
+        arbiter: 'Arbiter must be different from the buyer address.',
+      });
+    });
+
+    it('reports an invalid address instead of a duplicate', () => {
+      const errors = validateParties({ ...parties, supplier: 'bad', logistics: 'bad' });
+      assert.match(errors.supplier!, /valid Stellar public key/);
+      assert.match(errors.logistics!, /valid Stellar public key/);
     });
   });
 });
