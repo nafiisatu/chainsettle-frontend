@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Loader2, Wallet, ShieldCheck, Zap, Globe, ExternalLink, X } from 'lucide-react';
+import { connectFreighter, isFreighterInstalled, signNonce } from '@/lib/stellar/freighter';
+import { authApi } from '@/lib/api/services';
 import { Loader2, Wallet, ShieldCheck, Zap, Globe, X, ExternalLink, Clock } from 'lucide-react';
 import { isFreighterInstalled } from '@/lib/stellar/freighter';
 import { useAuthStore } from '@/lib/hooks/use-auth-store';
@@ -184,12 +187,19 @@ function LoginPageContent() {
                       {isDone ? '✓' : i + 1}
                     </div>
                     <span
+                      className={
+                        isCurrent
+                          ? 'text-gray-900 font-medium'
+                          : 'text-gray-400'
+                      }
                       className={isCurrent ? 'text-gray-900 font-medium' : 'text-gray-400'}
                     >
                       {stepLabel[s]}
                     </span>
                   </div>
                 );
+                },
+              )}
               })}
             </div>
           )}
@@ -209,7 +219,7 @@ function LoginPageContent() {
               <button
                 type="button"
                 onClick={() => setInstallModalOpen(false)}
-                className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                className="absolute end-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
                 aria-label="Close Freighter installation dialog"
               >
                 <X className="h-4 w-4" />

@@ -6,17 +6,24 @@
  * backend's job. We only need the expiry to drive the session timeout UI.
  */
 
+import type { UserRole } from '@/types';
+
 interface JwtPayload {
+  sub?: string;
+  stellarAddress?: string;
+  role?: UserRole;
   exp?: number;
   [claim: string]: unknown;
 }
 
+const VALID_ROLES: UserRole[] = ['BUYER', 'SUPPLIER', 'LOGISTICS', 'ARBITER', 'ADMIN'];
+
 function base64UrlDecode(segment: string): string {
   const base64 = segment.replace(/-/g, '+').replace(/_/g, '/');
   const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-  if (typeof window !== 'undefined' && typeof window.atob === 'function') {
+  if (typeof globalThis.atob === 'function') {
     // atob returns a binary string; decode it as UTF-8 for non-ASCII claims
-    const binary = window.atob(padded);
+    const binary = globalThis.atob(padded);
     const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
     return new TextDecoder().decode(bytes);
   }
@@ -33,6 +40,15 @@ export function decodeJwtPayload(token: string): JwtPayload | null {
   } catch {
     return null;
   }
+}
+
+/** Return the user's role claim from a JWT if present and recognized. */
+export function getTokenRole(token: string | null | undefined): UserRole | null {
+  if (!token) return null;
+  const role = decodeJwtPayload(token)?.role;
+  return typeof role === 'string' && VALID_ROLES.includes(role as UserRole)
+    ? (role as UserRole)
+    : null;
 }
 
 /**

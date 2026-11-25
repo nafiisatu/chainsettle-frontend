@@ -167,6 +167,15 @@ describe('API Services', () => {
       assert.ok(content.length > 0 && content.length <= 1000);
     });
 
+    it('documents update and delete comment functions', () => {
+      // commentsApi.update(shipmentId: string, commentId: string, body: string | UpdateCommentInput): Promise<Comment>
+      // Calls PATCH /shipments/{shipmentId}/comments/{commentId}
+      // commentsApi.delete(shipmentId: string, commentId: string): Promise<void>
+      // Calls DELETE /shipments/{shipmentId}/comments/{commentId}
+      const methods = ['list', 'create', 'update', 'delete'];
+      assert.equal(methods.length, 4);
+    });
+
     it('documents Comment interface structure', () => {
       // Comment interface fields:
       // - id: string
@@ -174,10 +183,24 @@ describe('API Services', () => {
       // - authorAddress: string (Stellar account)
       // - authorRole?: string ('BUYER' | 'SUPPLIER' | 'LOGISTICS' | 'ARBITER')
       // - content: string
+      // - mentions?: MentionRole[]
+      // - edited?: boolean
+      // - editedAt?: string | null
       // - createdAt: ISO timestamp string
       // - updatedAt?: ISO timestamp string
       const commentFields = ['id', 'shipmentId', 'authorAddress', 'content', 'createdAt'];
       assert.equal(commentFields.length, 5);
+    });
+  });
+
+  describe('adminApi', () => {
+    it('documents listUsers and updateUserRole functions', () => {
+      // adminApi.listUsers(params?: { search?: string; page?: number; limit?: number }): Promise<PaginatedResponse<User>>
+      // Calls GET /admin/users
+      // adminApi.updateUserRole(userId: string, role: UserRole): Promise<User>
+      // Calls PATCH /admin/users/{userId}/role
+      const methods = ['listUsers', 'updateUserRole'];
+      assert.equal(methods.length, 2);
     });
   });
 

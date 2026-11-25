@@ -1,9 +1,15 @@
 'use client';
 
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Download, Plus, Package, Search, SlidersHorizontal, X, ArrowUp, ArrowDown, ArrowUpDown, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
+  Archive,
+  ArchiveRestore,
   Download,
   Plus,
   Package,
@@ -18,11 +24,13 @@ import {
 import { shipmentsApi } from '@/lib/api/services';
 import { cancelShipment } from '@/lib/stellar/contract';
 import { useAuthStore } from '@/lib/hooks/use-auth-store';
+import { isArchivableStatus, useArchivedShipments } from '@/lib/hooks/use-archived-shipments-store';
 import { ShipmentCard } from '@/components/shipments/ShipmentCard';
 import { ShipmentCardSkeleton } from '@/components/shipments/ShipmentCardSkeleton';
 import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
 import { stroopsToUsdc } from '@/lib/utils';
+import { getAllShipmentNotes } from '@/lib/services/notes';
 import type { Shipment, ShipmentStatus } from '@/types';
 import { useTranslations } from 'next-intl';
 
@@ -38,15 +46,36 @@ const sortLabels: Record<SortKey, string> = {
 const validSortKeys: SortKey[] = ["createdAt", "status", "amount"];
 const validSortDirections: SortDirection[] = ["asc", "desc"];
 
+type ShipmentFilterTab = ShipmentStatus | 'Archived' | '';
+
 function ShipmentsPageContent() {
   const { address } = useAuthStore();
+  const {
+    archivedIds,
+    archivedSet,
+    archive,
+    unarchive,
+    archiveMany,
+    unarchiveMany,
+  } = useArchivedShipments(address);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const requestedSort = searchParams?.get("sort");
+  const requestedDirection = searchParams?.get("direction");
+  const sortKey: SortKey = validSortKeys.includes(requestedSort as SortKey)
+    ? (requestedSort as SortKey)
+    : "createdAt";
+  const sortDirection: SortDirection = validSortDirections.includes(
+    requestedDirection as SortDirection,
+  )
+    ? (requestedDirection as SortDirection)
+    : "desc";
 
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ShipmentStatus | ''>('');
+  const [statusFilter, setStatusFilter] = useState<ShipmentFilterTab>('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [dateField, setDateField] = useState<'created' | 'updated'>('created');
@@ -55,23 +84,28 @@ function ShipmentsPageContent() {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [bulkActionError, setBulkActionError] = useState<string | null>(null);
   const [statusCounts, setStatusCounts] = useState({
     All: 0,
     Active: 0,
     Completed: 0,
     Cancelled: 0,
   });
+  const [personalNotes, setPersonalNotes] = useState<Record<string, string>>({});
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const t = useTranslations('dashboard');
-  const statusTabs: Array<{ label: string; value: ShipmentStatus | '' }> = [
+  const statusTabs: Array<{ label: string; value: ShipmentFilterTab }> = [
     { label: t('tabs.all'), value: '' },
     { label: t('tabs.active'), value: 'Active' },
     { label: t('tabs.completed'), value: 'Completed' },
     { label: t('tabs.cancelled'), value: 'Cancelled' },
+    { label: t('tabs.archived'), value: 'Archived' },
   ];
 
-  const validStatusValues = ['Active', 'Completed', 'Cancelled'];
+  const validStatusValues = ['Active', 'Completed', 'Cancelled', 'Archived'];
   const counterpartyRoles = [
     { label: 'Any role', value: '' },
     { label: 'Buyer', value: 'buyer' },
@@ -83,17 +117,18 @@ function ShipmentsPageContent() {
   useEffect(() => {
     if (!address) return;
     setLoading(true);
+    const isArchivedTab = statusFilter === 'Archived';
 
     shipmentsApi
       .list({
         buyerAddress: address,
-        status: statusFilter || undefined,
-        page,
-        limit: PAGE_LIMIT,
+        status: isArchivedTab ? undefined : statusFilter || undefined,
+        page: isArchivedTab ? 1 : page,
+        limit: isArchivedTab ? 100 : PAGE_LIMIT,
       })
       .then((res) => {
         setShipments(res.data);
-        setTotalPages(res.totalPages ?? res.meta?.totalPages ?? 1);
+        setTotalPages(isArchivedTab ? 1 : (res.totalPages ?? res.meta?.totalPages ?? 1));
         setSelectedIds([]);
       })
       .catch(console.error)
@@ -143,13 +178,30 @@ function ShipmentsPageContent() {
   }, [address]);
 
   useEffect(() => {
+    if (address) {
+      setPersonalNotes(getAllShipmentNotes(address));
+    } else {
+      setPersonalNotes({});
+    }
+
+    const handleNotesUpdated = () => {
+      if (address) {
+        setPersonalNotes(getAllShipmentNotes(address));
+      }
+    };
+
+    window.addEventListener('chainsettle:notes-updated', handleNotesUpdated);
+    return () => window.removeEventListener('chainsettle:notes-updated', handleNotesUpdated);
+  }, [address]);
+
+  useEffect(() => {
     const paramStatus = searchParams?.get("status") ?? "";
     if (paramStatus && !validStatusValues.includes(paramStatus)) {
       setStatusFilter("");
       return;
     }
 
-    setStatusFilter(paramStatus as ShipmentStatus | '');
+    setStatusFilter(paramStatus as ShipmentFilterTab);
     setFromDate(searchParams?.get('from') ?? '');
     setToDate(searchParams?.get('to') ?? '');
     setDateField(searchParams?.get('date') === 'updated' ? 'updated' : 'created');
@@ -186,9 +238,13 @@ function ShipmentsPageContent() {
   const hasAdvancedFilters = fromDate || toDate || dateField !== 'created' || counterpartyRole;
 
   const filtered = shipments.filter((shipment) => {
+    const query = search.trim().toLowerCase();
+    const userNote = (personalNotes[shipment.id] || '').toLowerCase();
     const matchesSearch =
-      shipment.id.toLowerCase().includes(search.toLowerCase()) ||
-      shipment.supplierAddress.toLowerCase().includes(search.toLowerCase());
+      !query ||
+      shipment.id.toLowerCase().includes(query) ||
+      shipment.supplierAddress.toLowerCase().includes(query) ||
+      userNote.includes(query);
     const filterDate = (dateField === 'updated' ? shipment.updatedAt : shipment.createdAt).slice(0, 10);
     const matchesFrom = !fromDate || filterDate >= fromDate;
     const matchesTo = !toDate || filterDate <= toDate;
@@ -268,6 +324,12 @@ function ShipmentsPageContent() {
 
   const selectedShipments = sortedShipments.filter((shipment) =>
     selectedIds.includes(shipment.id),
+  );
+  const archivableShipments = selectedShipments.filter(
+    (shipment) => isArchivableStatus(shipment.status) && !archivedSet.has(shipment.id),
+  );
+  const unarchivableShipments = selectedShipments.filter((shipment) =>
+    archivedSet.has(shipment.id),
   );
   const cancellableShipments = selectedShipments.filter(
     (shipment) =>
@@ -401,7 +463,12 @@ function ShipmentsPageContent() {
           <h1 className="text-xl font-semibold text-gray-900">Shipments</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {t('shipmentCount', {
-              count: (statusFilter ? statusCounts[statusFilter] : statusCounts.All) || shipments.length,
+              count:
+                statusFilter === 'Archived'
+                  ? sortedShipments.length
+                  : statusFilter
+                    ? statusCounts[statusFilter]
+                    : Math.max(0, statusCounts.All - archivedIds.length) || sortedShipments.length,
             })}
           </p>
         </div>
@@ -417,7 +484,11 @@ function ShipmentsPageContent() {
           {statusTabs.map((tab) => {
             const isActive = tab.value === statusFilter;
             const count =
-              statusCounts[tab.label as keyof typeof statusCounts] ?? 0;
+              tab.value === 'Archived'
+                ? archivedIds.length
+                : tab.value === ''
+                  ? Math.max(0, statusCounts.All - archivedIds.length)
+                  : statusCounts[tab.value as keyof typeof statusCounts] ?? 0;
 
             return (
               <button
@@ -449,7 +520,7 @@ function ShipmentsPageContent() {
         </div>
 
         <div className="relative max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" aria-hidden="true" />
           <input
             ref={searchInputRef}
             type="text"
@@ -457,12 +528,12 @@ function ShipmentsPageContent() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Search shipments"
-            className="input pl-9"
+            className="input ps-9"
           />
         </div>
 
         <div className="flex items-end gap-3 flex-wrap rounded-xl border border-gray-100 bg-white p-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mr-1">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-700 me-1">
             <SlidersHorizontal className="w-4 h-4 text-gray-400" />
             Advanced filters
           </div>
@@ -523,7 +594,7 @@ function ShipmentsPageContent() {
             <input
               type="checkbox"
               checked={allVisibleSelected}
-              onChange={toggleSelectAll}
+              onChange={toggleAllVisible}
               className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
             />
             Select all visible
@@ -540,14 +611,38 @@ function ShipmentsPageContent() {
               >
                 <Download className="h-3.5 w-3.5" /> Export selected
               </button>
+              {archivableShipments.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    archiveMany(archivableShipments.map((s) => s.id));
+                    setSelectedIds([]);
+                  }}
+                  className="btn-secondary text-xs"
+                >
+                  <Archive className="h-3.5 w-3.5" /> Archive selected
+                </button>
+              )}
+              {unarchivableShipments.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    unarchiveMany(unarchivableShipments.map((s) => s.id));
+                    setSelectedIds([]);
+                  }}
+                  className="btn-secondary text-xs"
+                >
+                  <ArchiveRestore className="h-3.5 w-3.5" /> Unarchive selected
+                </button>
+              )}
               {cancellableShipments.length > 0 && (
                 <button
                   type="button"
-                  onClick={cancelSelected}
-                  disabled={cancelling}
+                  onClick={() => setCancelModalOpen(true)}
+                  disabled={bulkActionLoading}
                   className="btn-secondary text-xs text-red-600 hover:bg-red-50"
                 >
-                  {cancelling ? (
+                  {bulkActionLoading ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <X className="h-3.5 w-3.5" />
@@ -565,6 +660,21 @@ function ShipmentsPageContent() {
             <ShipmentCardSkeleton key={i} />
           ))}
         </div>
+      ) : statusFilter === 'Archived' && filtered.length === 0 ? (
+        <EmptyState
+          icon={Archive}
+          title="No archived shipments"
+          description="Completed or cancelled shipments you archive for this wallet will appear here."
+          action={
+            <button
+              type="button"
+              onClick={() => router.replace('/dashboard/shipments')}
+              className="btn-secondary inline-flex"
+            >
+              View active shipments
+            </button>
+          }
+        />
       ) : shipments.length === 0 ? (
         <EmptyState
           icon={Package}
@@ -586,33 +696,49 @@ function ShipmentsPageContent() {
           title={t('empty.noResultsTitle')}
           description={t('empty.noResultsDescription')}
           action={
-            <Link
-              href="/dashboard/shipments/create"
-              className="btn-primary inline-flex"
-            >
-              <Plus className="w-4 h-4" />
-              {t('newShipment')}
-            </Link>
+            archivedIds.length > 0 && !search && !hasAdvancedFilters ? (
+              <button
+                type="button"
+                onClick={() => router.replace('/dashboard/shipments?status=Archived')}
+                className="btn-secondary inline-flex"
+              >
+                <Archive className="w-4 h-4" />
+                View archived ({archivedIds.length})
+              </button>
+            ) : (
+              <Link
+                href="/dashboard/shipments/create"
+                className="btn-primary inline-flex"
+              >
+                <Plus className="w-4 h-4" />
+                {t('newShipment')}
+              </Link>
+            )
           }
         />
       ) : (
         <>
           <div className="space-y-3">
-            {filtered.map((shipment) => (
+            {sortedShipments.map((shipment) => (
               <ShipmentCard
                 key={shipment.id}
                 shipment={shipment}
                 selected={selectedIds.includes(shipment.id)}
                 onSelect={() => toggleSelection(shipment.id)}
+                archived={archivedSet.has(shipment.id)}
+                onArchive={archive}
+                onUnarchive={unarchive}
               />
             ))}
           </div>
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPrev={() => setPage((p) => p - 1)}
-            onNext={() => setPage((p) => p + 1)}
-          />
+          {statusFilter !== 'Archived' && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPrev={() => setPage((p) => p - 1)}
+              onNext={() => setPage((p) => p + 1)}
+            />
+          )}
         </>
       )}
 

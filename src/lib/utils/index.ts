@@ -5,10 +5,31 @@
 
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import type { MilestoneStatus, ShipmentStatus } from '@/types';
+import {
+  type DateDisplayMode,
+  type DateFormatOptions,
+  type DatePreferences,
+  defaultDatePreferences,
+  formatDateWithPreferences,
+  formatFullTimestamp as formatFullTimestampWithPreferences,
+  getBrowserTimeZone,
+  getSupportedTimeZones,
+  resolveTimeZone,
+  timeAgoWithPreferences,
+} from './date-preferences';
 
 export { toSafeProofUrl } from './proof-url';
+export {
+  type DateDisplayMode,
+  type DateFormatOptions,
+  type DatePreferences,
+  defaultDatePreferences,
+  getBrowserTimeZone,
+  getSupportedTimeZones,
+  resolveTimeZone,
+};
 
 /** Merge Tailwind classes safely */
 export function cn(...inputs: ClassValue[]): string {
@@ -89,16 +110,22 @@ export function proofHashHref(proofHash: string): string | null {
   return null;
 }
 
-/** Format a date string to a readable format */
-export function formatDate(date: string | null): string {
-  if (!date) return '—';
-  return format(new Date(date), 'MMM d, yyyy');
+/** Format a date string to a readable format using active timezone preference */
+export function formatDate(date: string | null, options?: DateFormatOptions): string {
+  return formatDateWithPreferences(date, options);
 }
 
-/** Format a date as "X ago" */
-export function timeAgo(date: string | null): string {
-  if (!date) return '—';
-  return formatDistanceToNow(new Date(date), { addSuffix: true });
+/** Format a full timestamp including seconds and timezone for tooltips */
+export function formatFullTimestamp(
+  date: string | null,
+  options?: Pick<DateFormatOptions, 'timezone' | 'locale'>,
+): string {
+  return formatFullTimestampWithPreferences(date, options);
+}
+
+/** Format a date as "X ago" or absolute timestamp depending on user preference */
+export function timeAgo(date: string | null, options?: DateFormatOptions): string {
+  return timeAgoWithPreferences(date, options);
 }
 
 /** Get Tailwind badge class for shipment status */

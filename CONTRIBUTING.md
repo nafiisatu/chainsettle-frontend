@@ -2,6 +2,8 @@
 
 Thanks for helping improve ChainSettle. Please follow this guide when setting up the project and opening a pull request.
 
+New to the codebase? Start with the [architecture overview](docs/architecture.md). It explains how the frontend, backend and Soroban contract interact.
+
 ## Local setup
 
 1. Install [Node.js 20 or later](https://nodejs.org/) and npm.
@@ -52,7 +54,11 @@ The build validates environment variables at build time. Make sure your local `.
 
 ## UI text and translations
 
-Do not hard-code user-facing strings in components. Add or update messages in `src/i18n/messages/en.json` and use the existing `next-intl` translation patterns so UI text remains translatable.
+Do not hard-code user-facing strings in components. Add or update messages in `src/i18n/messages/en.json` and use the existing `next-intl` translation patterns so UI text remains translatable. See the [i18n guide](docs/i18n.md) for how to add keys, use them in server and client components, and add a new locale.
+
+## Components
+
+Before building a new component, check the [component conventions and catalog](docs/components.md) for shared components to reuse and the naming, folder, styling and accessibility conventions to follow.
 
 ## Pull requests
 

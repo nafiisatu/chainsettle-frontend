@@ -62,7 +62,7 @@ export function KeyboardShortcuts() {
         Keyboard shortcuts available
       </span>
       {helpOpen && (
-        <div className="no-print fixed bottom-5 right-5 z-50 w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-lg">
+        <div className="no-print fixed bottom-5 end-5 z-50 w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-lg">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
               <Keyboard className="h-4 w-4 text-brand-600" />

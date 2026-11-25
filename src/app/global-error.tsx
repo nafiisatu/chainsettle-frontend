@@ -18,7 +18,7 @@ export default function GlobalError({
             A critical error occurred and the application could not recover.
           </p>
           {error.message ? (
-            <p className="mt-4 break-words rounded-md bg-gray-100 p-3 text-left text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+            <p className="mt-4 break-words rounded-md bg-gray-100 p-3 text-start text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-300">
               {error.message}
             </p>
           ) : null}

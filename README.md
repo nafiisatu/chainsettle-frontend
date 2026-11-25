@@ -62,6 +62,8 @@ See the [contributor guide](CONTRIBUTING.md) for full local setup, including Fre
 | `npm test` | Run unit tests with `node:test` |
 | `npm run format` | Format sources with Prettier |
 
+For a map of the codebase (folder structure, data flow between the UI, backend and Soroban contract, state stores and polling), read the [architecture overview](docs/architecture.md).
+
 ---
 
 ## Environment variables
@@ -79,12 +81,10 @@ See the [contributor guide](CONTRIBUTING.md) for full local setup, including Fre
 
 ## Documentation
 
-- [Changelog](CHANGELOG.md) — feature notes and release history
-- [Troubleshooting](docs/troubleshooting.md) — common problems and contract error codes
-- [Architecture](docs/architecture.md) — tech stack, project structure, key flows, i18n and CSP
-- [Backend API contract](docs/backend-api.md) — endpoints the frontend expects from the backend
-- [Middleware](MIDDLEWARE.md) — route protection and security headers
-- [Contributing](CONTRIBUTING.md) — setup, checks and pull request process
+- [Deployment guide and mainnet checklist](docs/deployment.md)
+- [User guide](docs/user-guide/README.md) for buyers, suppliers, logistics providers and arbiters
+- [Component conventions and catalog](docs/components.md)
+- [i18n guide](docs/i18n.md)
 
 ---
 
@@ -95,6 +95,8 @@ See the [contributor guide](CONTRIBUTING.md) for full local setup, including Fre
 - [ ] Configure mainnet contract ID
 - [ ] Enable HTTPS backend URL
 - [ ] Deploy frontend and backend with matching CORS settings
+
+See the [deployment guide](docs/deployment.md) for the full mainnet go-live checklist, CSP changes for custom RPC/IPFS hosts, and how to verify a deployment.
 
 ---
 

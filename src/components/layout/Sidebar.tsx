@@ -10,10 +10,13 @@ import {
   ShieldCheck,
   Activity,
   LayoutDashboard,
+  Users,
   X,
   Settings,
+  Users,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/hooks/use-auth-store';
+import { getTokenRole } from '@/lib/auth/jwt';
 import { notificationsApi } from '@/lib/api/services';
 import { shortAddress } from '@/lib/utils';
 import { cn } from '@/lib/utils';
@@ -22,9 +25,17 @@ import { useTranslations } from 'next-intl';
 const NAV_ITEMS = [
   { href: '/dashboard', labelKey: 'overview', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/shipments', labelKey: 'shipments', icon: Package },
+  { href: '/dashboard/counterparties', labelKey: 'counterparties', icon: Users },
   { href: '/notifications', labelKey: 'notifications', icon: Bell },
   { href: '/dashboard/events', labelKey: 'chainEvents', icon: Activity },
 ];
+
+const ADMIN_NAV_ITEM = {
+  href: '/dashboard/admin/users',
+  labelKey: 'adminUsers',
+  icon: Users,
+  exact: false,
+};
 
 interface SidebarProps {
   open: boolean;
@@ -33,7 +44,9 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { address, logout, displayName } = useAuthStore();
+  const { address, user, token, logout, displayName } = useAuthStore();
+  const isAdmin = (user?.role ?? getTokenRole(token)) === 'ADMIN';
+  const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
   const t = useTranslations('navigation');
   const [unreadCount, setUnreadCount] = useState(0);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -81,11 +94,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       className={cn(
         'no-print',
         // Base styles
-        'w-60 bg-white border-r border-gray-100 flex flex-col flex-shrink-0',
+        'w-60 bg-white border-e border-gray-100 flex flex-col flex-shrink-0',
         // Mobile: fixed drawer that slides in/out
-        'fixed inset-y-0 left-0 z-30 transition-transform duration-300 ease-in-out',
+        'fixed inset-y-0 start-0 z-30 transition-transform duration-300 ease-in-out',
         'md:relative md:translate-x-0 md:z-auto md:transition-none',
-        open ? 'translate-x-0' : '-translate-x-full',
+        open ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full',
       )}
       aria-hidden={!open}
     >
@@ -108,7 +121,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5">
-        {NAV_ITEMS.map(({ href, labelKey, icon: Icon, exact }) => {
+        {navItems.map(({ href, labelKey, icon: Icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href);
           const isNotifications = labelKey === 'notifications';
           return (
@@ -127,7 +140,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               <Icon className={cn('w-4 h-4', active ? 'text-brand-600' : 'text-gray-400')} />
               {t(labelKey)}
               {isNotifications && unreadCount > 0 && (
-                <span className="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold leading-none">
+                <span className="ms-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold leading-none">
                   {badgeLabel}
                 </span>
               )}

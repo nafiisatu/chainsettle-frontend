@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Bell, CheckCheck, Loader2, X } from 'lucide-react';
 import { notificationsApi } from '@/lib/api/services';
 import { EmptyState } from '@/components/EmptyState';
-import { timeAgo, cn } from '@/lib/utils';
+import { FormattedDate } from '@/components/FormattedDate';
+import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/hooks/use-auth-store';
 import type { Notification } from '@/types';
 import { formatDistanceToNow, isToday, isYesterday, isThisWeek } from 'date-fns';
@@ -288,7 +289,7 @@ export default function NotificationsPage() {
           <span
             className={cn(
               'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-              desktopEnabled ? 'translate-x-6' : 'translate-x-1',
+              desktopEnabled ? 'translate-x-6 rtl:-translate-x-6' : 'translate-x-1 rtl:-translate-x-1',
             )}
           />
         </button>
@@ -309,7 +310,7 @@ export default function NotificationsPage() {
             )}
           >
             {f.label}
-            <span className="ml-1.5 inline-block">{f.count}</span>
+            <span className="ms-1.5 inline-block">{f.count}</span>
           </button>
         ))}
       </div>
@@ -337,7 +338,7 @@ export default function NotificationsPage() {
                     key={n.id}
                     onClick={() => handleNotificationClick(n)}
                     className={cn(
-                      'w-full text-left p-4 flex items-start gap-3 transition-colors hover:bg-gray-50',
+                      'w-full text-start p-4 flex items-start gap-3 transition-colors hover:bg-gray-50',
                       !n.read && 'bg-brand-50/40',
                     )}
                   >
@@ -351,7 +352,9 @@ export default function NotificationsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900">{n.title}</p>
                       <p className="text-sm text-gray-500 mt-0.5">{n.message}</p>
-                      <p className="text-xs text-gray-400 mt-1">{timeAgo(n.createdAt)}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        <FormattedDate date={n.createdAt} />
+                      </p>
                     </div>
                   </button>
                 ))}

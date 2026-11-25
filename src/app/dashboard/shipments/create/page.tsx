@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useId, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Plus, Trash2, Loader2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2, Loader2, AlertCircle, AlertTriangle, BookmarkPlus, CheckCircle2, Copy, X } from 'lucide-react';
@@ -14,9 +17,13 @@ import { useShipmentTemplates, useTemplatesStore } from '@/lib/hooks/use-templat
 import { cloneMilestones, isSavableSplit, type ShipmentTemplate } from '@/lib/templates';
 import { TemplatePicker } from '@/components/templates/TemplatePicker';
 import { SaveTemplateDialog } from '@/components/templates/SaveTemplateDialog';
+import { SupplierMetricsCard } from '@/components/counterparties/SupplierMetricsCard';
 import { TransactionError, isTxPending } from '@/components/TransactionError';
 import type { CreateMilestoneInput } from '@/types';
 
+const USDC_ADDRESS = process.env.NEXT_PUBLIC_USDC_ADDRESS!;
+const HIGH_VALUE_THRESHOLD_USDC =
+  Number(process.env.NEXT_PUBLIC_HIGH_VALUE_THRESHOLD_USDC) || 1000;
 const USDC_ADDRESS = env.usdcAddress;
 const HIGH_VALUE_THRESHOLD_USDC = 10_000;
 const DEFAULT_MILESTONES: CreateMilestoneInput[] = [
@@ -114,6 +121,7 @@ function CreateShipmentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const duplicateFrom = searchParams?.get('from') ?? '';
+  const prefilledSupplier = normalizeAddress(searchParams?.get('supplier') ?? '');
   const { address } = useAuthStore();
   const errorId = useId();
   const txStepId = useId();
@@ -121,7 +129,7 @@ function CreateShipmentPageContent() {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
 
   const [shipmentId, setShipmentId] = useState(generateShipmentId);
-  const [supplierAddress, setSupplierAddress] = useState('');
+  const [supplierAddress, setSupplierAddress] = useState(prefilledSupplier);
   const [logisticsAddress, setLogisticsAddress] = useState('');
   const [arbiterAddress, setArbiterAddress] = useState('');
   const [totalUsdc, setTotalUsdc] = useState('');
@@ -129,6 +137,7 @@ function CreateShipmentPageContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [txStep, setTxStep] = useState('');
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [touched, setTouched] = useState<Record<EditableParty, boolean>>({
     supplier: false,
     logistics: false,
@@ -153,7 +162,9 @@ function CreateShipmentPageContent() {
       try {
         const draft = JSON.parse(savedDraft) as Partial<ShipmentDraft>;
         if (draft.shipmentId) setShipmentId(draft.shipmentId);
-        if (typeof draft.supplierAddress === 'string') setSupplierAddress(normalizeAddress(draft.supplierAddress));
+        if (!prefilledSupplier && typeof draft.supplierAddress === 'string') {
+          setSupplierAddress(normalizeAddress(draft.supplierAddress));
+        }
         if (typeof draft.logisticsAddress === 'string') setLogisticsAddress(normalizeAddress(draft.logisticsAddress));
         if (typeof draft.arbiterAddress === 'string') setArbiterAddress(normalizeAddress(draft.arbiterAddress));
         if (typeof draft.totalUsdc === 'string') setTotalUsdc(draft.totalUsdc);
@@ -317,6 +328,10 @@ function CreateShipmentPageContent() {
   };
 
   const submitShipment = async () => {
+    if (!address) {
+      setError('Wallet is not connected.');
+      return;
+    }
     setLoading(true);
     try {
       setTxStep('Building transaction…');
@@ -380,7 +395,7 @@ function CreateShipmentPageContent() {
         href="/dashboard/shipments"
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 mb-5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
       >
-        <ArrowLeft className="w-4 h-4" />
+        <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
         Back
       </Link>
 
@@ -453,7 +468,7 @@ function CreateShipmentPageContent() {
                 <p className="text-sm font-medium text-red-700">
                   Please fix the following before signing:
                 </p>
-                <ul className="list-disc pl-4 text-sm text-red-700 space-y-0.5">
+                <ul className="list-disc ps-4 text-sm text-red-700 space-y-0.5">
                   {summaryErrors.map(([role, message]) => (
                     <li key={role}>
                       <a href={`#${generateInputId(role)}`} className="underline hover:text-red-900">
@@ -509,15 +524,22 @@ function CreateShipmentPageContent() {
               <label htmlFor={generateInputId('buyer')} className="label">Your address (buyer)</label>
               <input id={generateInputId('buyer')} value={address ?? ''} readOnly className="input bg-gray-50 text-gray-500 font-mono text-xs" />
             </div>
-            <AddressField
-              role="supplier"
-              label="Supplier Stellar address"
-              value={supplierAddress}
-              onChange={(v) => setSupplierAddress(normalizeAddress(v))}
-              onBlur={() => markTouched('supplier')}
-              error={visiblePartyError('supplier')}
-              touched={touched.supplier}
-            />
+            <div>
+              <AddressField
+                role="supplier"
+                label="Supplier Stellar address"
+                value={supplierAddress}
+                onChange={(v) => setSupplierAddress(normalizeAddress(v))}
+                onBlur={() => markTouched('supplier')}
+                error={visiblePartyError('supplier')}
+                touched={touched.supplier}
+              />
+              <SupplierMetricsCard
+                address={supplierAddress}
+                compact
+                showProfileLink
+              />
+            </div>
             <AddressField
               role="logistics"
               label="Logistics Stellar address"
@@ -594,10 +616,10 @@ function CreateShipmentPageContent() {
                       )
                     }
                     required
-                    className="input pr-7"
+                    className="input pe-7"
                     aria-label={`Milestone ${i + 1} payment percentage`}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400" aria-hidden="true">%</span>
+                  <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-gray-400" aria-hidden="true">%</span>
                 </div>
                 {milestones.length > 1 && (
                   <button

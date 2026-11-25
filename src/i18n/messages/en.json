@@ -2,6 +2,7 @@
   "navigation": {
     "overview": "Overview",
     "shipments": "Shipments",
+    "counterparties": "Counterparties",
     "notifications": "Notifications",
     "chainEvents": "Chain Events",
     "signOut": "Sign out",
@@ -14,7 +15,8 @@
     "viewOnStellarExpert": "View on Stellar Expert",
     "disconnectWallet": "Disconnect wallet",
     "toggleSidebar": "Toggle sidebar",
-    "notificationsLabel": "Notifications"
+    "notificationsLabel": "Notifications",
+    "adminUsers": "Users"
   },
   "dashboard": {
     "title": "Shipments",
@@ -25,7 +27,8 @@
       "all": "All",
       "active": "Active",
       "completed": "Completed",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "archived": "Archived"
     },
     "empty": {
       "title": "No shipments yet",
@@ -51,11 +54,16 @@
       "description": "On-chain contract events will appear here once they are indexed.",
       "noResultsTitle": "No events found",
       "noResultsDescription": "No events match the current shipment filter."
-    }
+    },
+    "loadError": "Failed to load events"
   },
   "settings": {
     "title": "Profile & settings",
+    "subtitle": "Manage your connected Stellar account and preferences.",
     "description": "Manage your connected Stellar account.",
+    "walletProfile": "Wallet profile",
+    "displayName": "Display name",
+    "displayNamePlaceholder": "e.g. Acme Corp",
     "subtitle": "Manage your connected Stellar account and preferences.",
     "walletProfile": "Wallet profile",
     "displayName": "Display name",
@@ -65,9 +73,27 @@
     "shipmentUpdates": "Shipment updates",
     "shipmentUpdatesDescription": "Get notified when shipment status changes",
     "milestoneUpdates": "Milestone updates",
+    "milestoneUpdatesDescription": "Get notified when milestone proof or confirmation is needed",
+    "systemAlerts": "System alerts",
+    "systemAlertsDescription": "Important platform and security notifications",
+    "stellarAddress": "Stellar address",
+    "walletBalance": "Wallet balance",
+    "balanceUnavailable": "Balance currently unavailable",
     "milestoneUpdatesDescription": "Get notified about milestone confirmations and disputes",
     "systemAlerts": "System alerts",
     "systemAlertsDescription": "Receive notices about contract operations and network status",
+    "desktopNotifications": "Desktop notifications",
+    "desktopNotificationsDescription": "Receive browser notifications for updates when tab is inactive",
+    "desktopNotificationsDenied": "Desktop notifications are blocked in browser settings",
+    "desktopNotificationsUnsupported": "Desktop notifications are not supported in this browser",
+    "dateTimePreferences": "Date & time preferences",
+    "timezoneLabel": "Timezone",
+    "timezoneAuto": "Auto (Browser: {timezone})",
+    "dateFormatLabel": "Timestamp display",
+    "dateFormatRelative": "Relative (e.g. 2 hours ago)",
+    "dateFormatAbsolute": "Absolute (date & time)",
+    "datePreviewLabel": "Preview (hover for full timestamp)",
+    "languageLabel": "Language",
     "stellarAddress": "Stellar address",
     "walletBalance": "Wallet balance",
     "balanceUnavailable": "Unable to load wallet balance",
@@ -119,7 +145,17 @@
     "empty": {
       "title": "No shipment found",
       "description": "This shipment does not exist or you do not have access to it."
+    },
+    "notFound": {
+      "title": "Shipment not found",
+      "description": "The shipment you are looking for does not exist or has been removed.",
+      "backToShipments": "Back to shipments"
     }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you are looking for does not exist.",
+    "backToDashboard": "Back to dashboard"
   },
   "milestones": {
     "title": "Milestones",
@@ -130,6 +166,23 @@
     "completed": "Completed",
     "pending": "Pending",
     "disputed": "Disputed",
+    "syncing": "Syncing",
+    "syncingAria": "Syncing milestone status with backend",
+    "percentOfTotal": "{percent}% of total",
+    "proofLabel": "Proof:",
+    "viewProofAria": "View proof link (opens in new tab)",
+    "paymentReleased": "{amount} USDC released",
+    "transactionInProgressAria": "Transaction in progress",
+    "waitingForFreighter": "Waiting for confirmation…",
+    "proofPlaceholder": "ipfs://... or SHA-256 hash",
+    "proofInputAria": "Proof hash or IPFS CID",
+    "proofRequired": "Please enter a proof hash or upload a document.",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "submitProof": "Submit proof",
+    "confirmReceipt": "Confirm receipt",
+    "raiseDispute": "Raise dispute",
+    "transactionFailed": "Transaction failed. Please try again.",
     "empty": {
       "title": "No milestones yet",
       "description": "Milestones will appear here as the shipment progresses."
@@ -167,6 +220,45 @@
     "transactionFailed": "Transaction failed",
     "loadFailed": "Failed to load data"
   },
+  "tour": {
+    "skip": "Skip tour",
+    "next": "Next",
+    "back": "Back",
+    "finish": "Got it",
+    "stepCount": "Step {current} of {total}",
+    "replayTour": "Replay tour",
+    "buyer": {
+      "step1Title": "Create Escrow Shipments",
+      "step1Desc": "Start by setting up a new shipment, specifying the supplier, logistics provider, arbiter, and milestone percentage splits.",
+      "step2Title": "Lock USDC in Escrow",
+      "step2Desc": "Funds are securely deposited and locked into the Stellar Soroban escrow contract until milestones are satisfied.",
+      "step3Title": "Verify and Confirm Delivery",
+      "step3Desc": "Review submitted proofs from your counterparties and confirm milestones to release funds automatically."
+    },
+    "supplier": {
+      "step1Title": "Review Active Shipments",
+      "step1Desc": "Track all shipments where you are designated as the supplier and verify agreed payment milestone splits.",
+      "step2Title": "Submit Proof of Completion",
+      "step2Desc": "Upload cryptographic proof hashes for finished milestones to notify the buyer and trigger confirmation.",
+      "step3Title": "Receive Automated Payouts",
+      "step3Desc": "Once confirmed, escrowed USDC is directly disbursed to your Stellar address without intermediaries."
+    },
+    "logistics": {
+      "step1Title": "Track Assigned Shipments",
+      "step1Desc": "Monitor in-transit cargo where your wallet is designated as the trusted logistics verification partner.",
+      "step2Title": "Submit Transit Checkpoints",
+      "step2Desc": "Verify physical cargo handoffs and submit proof of transit checkpoints on-chain.",
+      "step3Title": "Keep Parties Synchronized",
+      "step3Desc": "Your verified checkpoints ensure transparency between buyer and supplier throughout transport."
+    },
+    "arbiter": {
+      "step1Title": "Access the Dispute Queue",
+      "step1Desc": "Review contested shipments and milestones requiring neutral third-party arbiter adjudication.",
+      "step2Title": "Examine On-Chain Evidence",
+      "step2Desc": "Inspect submitted delivery proofs, milestone timelines, and dispute rationales from both parties.",
+      "step3Title": "Resolve and Settle Escrow",
+      "step3Desc": "Execute definitive on-chain dispute resolutions to release funds to the supplier or refund the buyer."
+    }
   "contractErrors": {
     "technicalDetails": "Technical details",
     "transaction": "Transaction:",

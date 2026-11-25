@@ -35,12 +35,14 @@ function isActive(shipment: Shipment): boolean {
 
 function milestoneNeedsAction(
   milestone: Milestone,
+  role: UserRole | string | null,
   role: string | null,
 ): boolean {
   if (!role) return false;
-  if (role === "supplier") return milestone.status === "Pending";
-  if (role === "buyer") return milestone.status === "ProofSubmitted";
-  if (role === "arbiter") return milestone.status === "Disputed";
+  const r = role.toLowerCase();
+  if (r === "supplier") return milestone.status === "Pending";
+  if (r === "buyer") return milestone.status === "ProofSubmitted";
+  if (r === "arbiter") return milestone.status === "Disputed";
   return false;
 }
 
@@ -169,6 +171,7 @@ export default function DashboardOverviewPage() {
                   <span className="font-medium text-gray-900">
                     {shipment.id}
                   </span>
+                  <span className="text-gray-500">{milestone.title ?? milestone.name}</span>
                   <span className="text-gray-500">{milestone.name}</span>
                 </Link>
               </li>

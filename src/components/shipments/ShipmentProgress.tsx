@@ -1,5 +1,6 @@
 // components/shipments/ShipmentProgress.tsx
 import { stroopsToUsdc, shipmentProgress } from '@/lib/utils';
+import { ApproximateFiat } from '@/components/ui/ApproximateFiat';
 import type { Shipment } from '@/types';
 
 export function ShipmentProgress({ shipment }: { shipment: Shipment }) {
@@ -11,9 +12,9 @@ export function ShipmentProgress({ shipment }: { shipment: Shipment }) {
   return (
     <div className="card p-5">
       <div className="grid grid-cols-3 gap-4 mb-4">
-        <Stat label="Total locked" value={`$${totalUsdc}`} unit="USDC" />
-        <Stat label="Released" value={`$${releasedUsdc}`} unit="USDC" color="text-green-600" />
-        <Stat label="Remaining in escrow" value={`$${remainingUsdc}`} unit="USDC" color="text-blue-600" />
+        <Stat label="Total locked" value={`$${totalUsdc}`} rawAmount={totalUsdc} unit="USDC" />
+        <Stat label="Released" value={`$${releasedUsdc}`} rawAmount={releasedUsdc} unit="USDC" color="text-green-600" />
+        <Stat label="Remaining in escrow" value={`$${remainingUsdc}`} rawAmount={remainingUsdc} unit="USDC" color="text-blue-600" />
       </div>
 
       <div className="w-full bg-gray-100 rounded-full h-2 mb-1.5">
@@ -30,18 +31,23 @@ export function ShipmentProgress({ shipment }: { shipment: Shipment }) {
 function Stat({
   label,
   value,
+  rawAmount,
   unit,
   color = 'text-gray-900',
 }: {
   label: string;
   value: string;
+  rawAmount?: string;
   unit: string;
   color?: string;
 }) {
   return (
     <div>
       <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-      <p className={`text-lg font-semibold ${color}`}>{value}</p>
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <p className={`text-lg font-semibold ${color}`}>{value}</p>
+        {rawAmount && <ApproximateFiat amount={rawAmount} className="text-xs text-gray-500 font-normal" />}
+      </div>
       <p className="text-xs text-gray-400">{unit}</p>
     </div>
   );

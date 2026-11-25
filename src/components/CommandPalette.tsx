@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Plus, LogOut, FileText, Bell, Zap, Settings } from 'lucide-react';
+import { Search, Plus, LogOut, FileText, Bell, Zap, Settings, Users } from 'lucide-react';
 import { shipmentsApi } from '@/lib/api/services';
 import { useAuthStore } from '@/lib/hooks/use-auth-store';
+import { getTokenRole } from '@/lib/auth/jwt';
 import { cn, shortAddress } from '@/lib/utils';
 import type { Shipment } from '@/types';
 
@@ -35,7 +36,8 @@ function fuzzyMatch(query: string, text: string): boolean {
 
 export function CommandPalette() {
   const router = useRouter();
-  const { address, logout } = useAuthStore();
+  const { address, user, token, logout } = useAuthStore();
+  const isAdmin = (user?.role ?? getTokenRole(token)) === 'ADMIN';
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -70,6 +72,17 @@ export function CommandPalette() {
       },
     },
     {
+      id: 'counterparties',
+      type: 'page',
+      label: 'Counterparties',
+      description: 'Inspect supplier reliability metrics',
+      icon: Users,
+      action: () => {
+        router.push('/dashboard/counterparties');
+        setOpen(false);
+      },
+    },
+    {
       id: 'notifications',
       type: 'page',
       label: 'Notifications',
@@ -91,6 +104,21 @@ export function CommandPalette() {
         setOpen(false);
       },
     },
+    ...(isAdmin
+      ? [
+          {
+            id: 'admin-users',
+            type: 'page' as const,
+            label: 'Admin: Users',
+            description: 'Manage user roles',
+            icon: Users,
+            action: () => {
+              router.push('/dashboard/admin/users');
+              setOpen(false);
+            },
+          },
+        ]
+      : []),
   ];
 
   // Dynamic action commands
@@ -233,7 +261,7 @@ export function CommandPalette() {
         <button
           onClick={() => setOpen(true)}
           aria-label="Open command palette (Cmd+K)"
-          className="fixed bottom-5 left-5 z-40 hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+          className="fixed bottom-5 start-5 z-40 hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
         >
           <Search className="w-3.5 h-3.5" />
           <span>Cmd+K</span>
@@ -300,7 +328,7 @@ export function CommandPalette() {
                           setQuery('');
                         }}
                         className={cn(
-                          'w-full px-4 py-2.5 flex items-center gap-3 text-left text-sm transition-colors focus-visible:outline-none',
+                          'w-full px-4 py-2.5 flex items-center gap-3 text-start text-sm transition-colors focus-visible:outline-none',
                           selectedIndex === idx
                             ? 'bg-brand-50 text-brand-700'
                             : 'text-gray-700 hover:bg-gray-50',

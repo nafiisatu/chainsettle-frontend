@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getTokenRole } from '@/lib/auth/jwt';
 
 const PUBLIC_PATHS = ['/auth/login'];
 
@@ -65,6 +66,17 @@ export function middleware(request: NextRequest) {
     const response = NextResponse.redirect(loginUrl);
     response.headers.set('Content-Security-Policy', csp);
     return response;
+  }
+
+  // Guard admin routes to ADMIN role only
+  if (pathname.startsWith('/dashboard/admin')) {
+    const role = getTokenRole(token);
+    if (role !== 'ADMIN') {
+      const dashboardUrl = new URL('/dashboard', request.url);
+      const response = NextResponse.redirect(dashboardUrl);
+      response.headers.set('Content-Security-Policy', csp);
+      return response;
+    }
   }
 
   return next();
